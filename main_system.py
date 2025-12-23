@@ -384,9 +384,71 @@ class MultiAssetCausalSystem:
         
         return summary
     
+    def save_system(self, cache_path: str = "./results/system_cache.pkl"):
+        """시스템 상태 전체 저장 (빠른 로딩용)"""
+        os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+        
+        # 저장할 데이터
+        cache_data = {
+            'csv_path': self.csv_path,
+            'vol_window': self.vol_window,
+            'causality_window': self.causality_window,
+            'max_lag': self.max_lag,
+            'prices': self.prices,
+            'processed_data': self.processed_data,
+            'bucket_mapping': self.bucket_mapping,
+            'network_history': self.network_history,
+            'structure_history': self.structure_history,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        # 데이터 해시 (무효화 감지용)
+        if self.prices is not None:
+            data_hash = hashlib.md5(
+                pd.util.hash_pandas_object(self.prices).values
+            ).hexdigest()
+            cache_data['data_hash'] = data_hash
+        
+        with open(cache_path, 'wb') as f:
+            pickle.dump(cache_data, f)
+        
+        print(f"✓ System cached to: {cache_path}")
+        return cache_data['timestamp']
+    
+    @classmethod
+    def load_system(cls, cache_path: str = "./results/system_cache.pkl"):
+        """저장된 시스템 상태 로드"""
+        if not os.path.exists(cache_path):
+            return None
+        
+        with open(cache_path, 'rb') as f:
+            cache_data = pickle.load(f)
+        
+        # 시스템 재구성
+        system = cls(
+            csv_path=cache_data['csv_path'],
+            vol_window=cache_data['vol_window'],
+            causality_window=cache_data['causality_window'],
+            max_lag=cache_data['max_lag']
+        )
+        
+        # 데이터 복원
+        system.prices = cache_data['prices']
+        system.processed_data = cache_data['processed_data']
+        system.bucket_mapping = cache_data['bucket_mapping']
+        system.network_history = cache_data['network_history']
+        system.structure_history = cache_data['structure_history']
+        
+        # 분석기 재초기화
+        if system.bucket_mapping:
+            system.structure_analyzer = MarketStructureAnalyzer(system.bucket_mapping)
+            system.transmission_analyzer = ConditionalTransmissionAnalyzer(system.bucket_mapping)
+        
+        print(f"✓ System loaded from cache (saved: {cache_data['timestamp']})")
+        return system, cache_data.get('data_hash')
+    
     def save_results(self, output_dir: str = "./results"):
         """결과 저장"""
-        import os
         os.makedirs(output_dir, exist_ok=True)
         
         # 1. Network history

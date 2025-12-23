@@ -40,7 +40,7 @@ set_korean_font()
 # 페이지 설정
 st.set_page_config(
     page_title="Multi-Asset Causal Network Dashboard",
-    page_icon="📊",
+    page_icon="�",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -82,13 +82,13 @@ def load_system(force_retrain=False):
             result = MultiAssetCausalSystem.load_system(cache_path)
             if result is not None:
                 system, data_hash = result
-                st.success(f"✅ 캐시된 시스템 로드 완료!")
+                st.success(f"캐시된 시스템 로드 완료!")
                 return system
         except Exception as e:
             st.warning(f"캐시 로드 실패: {e}. 재학습합니다...")
     
     # 캐시 없으면 새로 학습
-    with st.spinner('🔄 시스템 학습 중... (최초 실행 또는 재학습)'):
+    with st.spinner('시스템 학습 중... (최초 실행 또는 재학습)'):
         system = MultiAssetCausalSystem(
             csv_path="가격 데이터.csv",
             vol_window=20,
@@ -107,7 +107,7 @@ def load_system(force_retrain=False):
         
         # 캐시 저장
         system.save_system(cache_path)
-        st.success(f"✅ 시스템 학습 및 캐시 저장 완료!")
+        st.success(f"시스템 학습 및 캐시 저장 완료!")
         
     return system
 
@@ -281,7 +281,7 @@ def plot_metrics_timeseries(structure_history):
 
 def main():
     # 헤더
-    st.markdown('<div class="main-header">📊 Multi-Asset Causal Network Dashboard</div>', 
+    st.markdown('<div class="main-header">Multi-Asset Causal Network Dashboard</div>', 
                 unsafe_allow_html=True)
     st.markdown("---")
     
@@ -293,13 +293,13 @@ def main():
         st.stop()
     
     # 사이드바
-    st.sidebar.title("⚙️ 설정")
+    st.sidebar.title("설정")
     
     # 재학습 버튼
     st.sidebar.markdown("---")
-    st.sidebar.subheader("🔄 시스템 관리")
+    st.sidebar.subheader("시스템 관리")
     
-    if st.sidebar.button("🔄 전체 재학습", help="모든 데이터를 다시 학습합니다 (시간 소요)"):
+    if st.sidebar.button("전체 재학습", help="모든 데이터를 다시 학습합니다 (시간 소요)"):
         st.cache_resource.clear()  # 캐시 초기화
         st.rerun()
     
@@ -307,7 +307,7 @@ def main():
     cache_path = "./results/system_cache.pkl"
     if os.path.exists(cache_path):
         cache_time = datetime.fromtimestamp(os.path.getmtime(cache_path))
-        st.sidebar.info(f"📊 마지막 학습: {cache_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        st.sidebar.info(f"마지막 학습: {cache_time.strftime('%Y-%m-%d %H:%M:%S')}")
     
     st.sidebar.markdown("---")
     
@@ -318,7 +318,7 @@ def main():
         max_date = max(available_dates).to_pydatetime()
         
         selected_date = st.sidebar.date_input(
-            "📅 분석 날짜 선택",
+            "분석 날짜 선택",
             value=max_date,
             min_value=min_date,
             max_value=max_date
@@ -414,12 +414,12 @@ def main():
     
     # 탭 생성
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-        "📊 네트워크 시각화",
-        "📈 시장 구조",
-        "🔄 조건부 전이",
-        "🔍 유사 국면",
-        "📉 시계열 분석",
-        "⚡ 구조 이동 분석"
+        "네트워크 시각화",
+        "시장 구조",
+        "조건부 전이",
+        "유사 국면",
+        "시계열 분석",
+        "구조 이동 분석"
     ])
     
     # ========================================================================
@@ -442,7 +442,7 @@ def main():
         st.markdown("---")
         
         if viz_type in ["히트맵", "둘 다"]:
-            st.subheader("🔥 인과관계 히트맵")
+            st.subheader("인과관계 히트맵")
             fig_heatmap = plot_network_heatmap(
                 selected_network,
                 title=f"Causal Network - {selected_date.strftime('%Y-%m-%d')}",
@@ -452,7 +452,7 @@ def main():
             plt.close()
         
         if viz_type in ["네트워크 그래프", "둘 다"]:
-            st.subheader("🕸️ 네트워크 그래프")
+            st.subheader("네트워크 그래프")
             result = plot_network_graph(
                 selected_network,
                 bucket_mapping=system.bucket_mapping,
@@ -464,11 +464,11 @@ def main():
                 # 범례
                 st.markdown("""
                 **색상 범례:**
-                - 🔴 Risk (위험자산)
-                - 🔵 Rates (금리)
-                - 🟠 Safe Haven (안전자산)
-                - 🟣 FX (외환)
-                - 🟢 Commodities (원자재)
+                - Risk (위험자산)
+                - Rates (금리)
+                - Safe Haven (안전자산)
+                - FX (외환)
+                - Commodities (원자재)
                 """)
                 
                 # 그래프 표시
@@ -482,7 +482,7 @@ def main():
                     unsafe_allow_html=True)
         
         # Bucket-to-Bucket 영향도
-        st.subheader("📦 Bucket-to-Bucket 영향도")
+        st.subheader("Bucket-to-Bucket 영향도")
         bucket_influence = selected_structure['bucket_influence']
         
         col1, col2 = st.columns([1, 1])
@@ -495,7 +495,7 @@ def main():
             st.plotly_chart(fig_bucket, use_container_width=True)
         
         # 주요 Source 자산
-        st.subheader("⭐ 주요 영향력 자산 (Top 10)")
+        st.subheader("주요 영향력 자산 (Top 10)")
         key_sources = selected_structure['key_sources']
         
         sources_df = pd.DataFrame([
@@ -511,7 +511,7 @@ def main():
         st.dataframe(sources_df, hide_index=True, use_container_width=True)
         
         # 전이 경로
-        st.subheader("🔀 주요 전이 경로")
+        st.subheader("주요 전이 경로")
         pathways = selected_structure['transmission_pathways']
         
         col1, col2, col3 = st.columns(3)
@@ -557,7 +557,7 @@ def main():
         )
         
         if len(impacts) > 0:
-            st.subheader(f"📌 영향받을 가능성이 높은 자산 Top {top_k_impacts}")
+            st.subheader(f"영향받을 가능성이 높은 자산 Top {top_k_impacts}")
             
             # 데이터프레임 생성
             impacts_df = pd.DataFrame([
@@ -586,7 +586,7 @@ def main():
             
             # 여러 시나리오 비교
             st.markdown("---")
-            st.subheader("📊 복수 시나리오 비교")
+            st.subheader("복수 시나리오 비교")
             
             scenario_assets = st.multiselect(
                 "비교할 자산 선택 (최대 5개)",
@@ -642,7 +642,7 @@ def main():
         )
         
         if len(similar_periods) > 0:
-            st.subheader(f"🔍 구조적으로 유사한 과거 시점 Top {top_k_similar}")
+            st.subheader(f"구조적으로 유사한 과거 시점 Top {top_k_similar}")
             
             similar_df = pd.DataFrame([
                 {
@@ -668,7 +668,7 @@ def main():
             
             # 유사 기간 이후 자산 반응
             st.markdown("---")
-            st.subheader(f"📈 유사 기간 이후 {forward_days}일간 자산 반응")
+            st.subheader(f"유사 기간 이후 {forward_days}일간 자산 반응")
             
             comparison = system.analogue_search.compare_analogues(
                 similar_periods,
@@ -736,12 +736,12 @@ def main():
                     unsafe_allow_html=True)
         
         # 메트릭 시계열
-        st.subheader("📉 네트워크 메트릭 추이")
+        st.subheader("네트워크 메트릭 추이")
         fig_ts = plot_metrics_timeseries(system.structure_history)
         st.plotly_chart(fig_ts, use_container_width=True)
         
         # Risk → Safe 전이 강도 추이
-        st.subheader("🔄 Risk → Safe Haven 전이 강도 추이")
+        st.subheader("Risk → Safe Haven 전이 강도 추이")
         
         dates = [pd.Timestamp(s['date']).to_pydatetime() for s in system.structure_history]
         risk_to_safe = [s['transmission_pathways']['risk_to_safe_strength'] 
@@ -798,7 +798,7 @@ def main():
         st.plotly_chart(fig_transmission, use_container_width=True)
         
         # 통계 요약
-        st.subheader("📊 전체 기간 통계")
+        st.subheader("전체 기간 통계")
         
         metrics_data = []
         for s in system.structure_history:
@@ -837,12 +837,12 @@ def main():
                     unsafe_allow_html=True)
         
         st.info("""
-        **💡 구조 벡터 해석 가이드**
+        **구조 벡터 해석 가이드**
         
         구조 벡터는 가격이나 수익률이 아니라 **시장 상태의 latent representation**입니다.
-        - ❌ 절대값의 크기는 의미 없음
-        - ✅ **시간에 따른 변화량**이 핵심
-        - ✅ **과거와의 상대적 거리**로 유사 국면 탐색
+        - 절대값의 크기는 의미 없음
+        - **시간에 따른 변화량**이 핵심
+        - **과거와의 상대적 거리**로 유사 국면 탐색
         
         **구조 이동량 (Structure Movement)**: ||structure_t - structure_{t-1}||
         - 높을수록 → 시장 구조가 급변 중 (불안정)
@@ -850,7 +850,7 @@ def main():
         """)
         
         # 구조 이동량 시계열
-        st.subheader("📉 구조 이동량 시계열")
+        st.subheader("구조 이동량 시계열")
         
         movement_data = []
         for i, s in enumerate(system.structure_history):
@@ -924,7 +924,7 @@ def main():
         st.markdown("---")
         
         # 자산 기여도 분석
-        st.subheader("🎯 구조 변화 주요 동인 (자산 기여도)")
+        st.subheader("구조 변화 주요 동인 (자산 기여도)")
         
         # 현재 날짜의 인덱스 찾기
         current_idx = None
@@ -1001,7 +1001,7 @@ def main():
                 
                 st.markdown("---")
                 st.write(f"""
-                **📊 요약**
+                **요약**
                 - 총 구조 이동량: {contrib['total_structure_movement']:.6f}
                 - 총 인과관계 변화량: {contrib['total_causality_change']:.4f}
                 - 주요 동인: **{contrib['top_contributors'][0]['asset']}** ({contrib['top_contributors'][0]['bucket']})
