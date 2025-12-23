@@ -634,9 +634,18 @@ def main():
         st.markdown(f'<div class="sub-header">과거 유사 국면 탐색 - {selected_date.strftime("%Y-%m-%d")}</div>', 
                     unsafe_allow_html=True)
         
-        # 유사 국면 찾기
-        similar_periods = system.analogue_search.find_similar_periods(
-            selected_structure['structure_vector'],
+        # 새로운 Scenario Engine 사용
+        from scenario_engine import ScenarioEngine
+        
+        scenario_engine = ScenarioEngine(
+            system=system,
+            processed_data=system.processed_data,
+            bucket_mapping=system.bucket_mapping
+        )
+        
+        # 개선된 유사 구조 탐색
+        similar_periods = scenario_engine.find_similar_structures_enhanced(
+            selected_date,
             top_k=top_k_similar,
             exclude_recent_days=exclude_days
         )
@@ -646,12 +655,14 @@ def main():
             
             similar_df = pd.DataFrame([
                 {
-                    '순위': period['rank'],
+                    '순위': i + 1,
                     '날짜': period['date'].strftime('%Y-%m-%d'),
-                    '유사도': f"{period['similarity']:.4f}",
+                    '종합거리': f"{period['distance']:.4f}",
+                    'Degree 거리': f"{period['deg_distance']:.4f}",
+                    'Risk-off 변화': f"{period['directional_metrics']['direction_change']:.4f}",
                     '일수 차이': (selected_date - period['date']).days
                 }
-                for period in similar_periods
+                for i, period in enumerate(similar_periods)
             ])
             
             st.dataframe(similar_df, hide_index=True, use_container_width=True)
@@ -660,71 +671,91 @@ def main():
             fig_similarity = px.bar(
                 similar_df,
                 x='날짜',
-                y=[float(x) for x in similar_df['유사도']],
-                title="과거 유사 시점별 유사도",
-                labels={'y': 'Cosine Similarity'}
+                y=[float(x) for x in similar_df['종합거리']],
+                title="과거 유사 시점별 거리 (낮을수록 유사)",
+                labels={'y': 'Distance (lower=similar)'}
             )
             st.plotly_chart(fig_similarity, use_container_width=True)
             
-            # 유사 기간 이후 자산 반응
+            # 유사 기간 이후 자산 반응 (조건부 분포)
             st.markdown("---")
-            st.subheader(f"유사 기간 이후 {forward_days}일간 자산 반응")
+            st.subheader(f"유사 기간 이후 {forward_days}일간 조건부 분포")
             
-            comparison = system.analogue_search.compare_analogues(
-                similar_periods,
-                system.prices,
-                forward_days=forward_days
-            )
-            
-            if len(comparison) > 0:
-                # 평균 수익률
-                asset_cols = [col for col in comparison.columns 
-                             if col not in ['date', 'similarity', 'rank']]
-                avg_returns = comparison[asset_cols].mean().sort_values(ascending=False)
-                
-                returns_df = pd.DataFrame({
-                    '자산': avg_returns.index,
-                    '버킷': [system.bucket_mapping.get(asset, 'Unknown') for asset in avg_returns.index],
-                    f'{forward_days}일 평균 수익률 (%)': avg_returns.values
-                })
-                
-                col1, col2 = st.columns([1, 1])
-                
-                with col1:
-                    st.dataframe(
-                        returns_df.style.background_gradient(
-                            subset=[f'{forward_days}일 평균 수익률 (%)'],
-                            cmap='RdYlGn'
-                        ),
-                        hide_index=True,
-                        use_container_width=True
-                    )
-                
-                with col2:
-                    fig_returns = px.bar(
-                        returns_df,
-                        x='자산',
-                        y=f'{forward_days}일 평균 수익률 (%)',
-                        color='버킷',
-                        title=f"평균 {forward_days}일 수익률",
-                        height=400
-                    )
-                    st.plotly_chart(fig_returns, use_container_width=True)
-                
-                # 각 유사 시점별 수익률 상세
-                st.markdown("#### 각 유사 시점별 상세 수익률")
-                detail_df = comparison.copy()
-                detail_df['날짜'] = detail_df['date'].dt.strftime('%Y-%m-%d')
-                detail_df = detail_df.drop(columns=['date'])
-                
-                st.dataframe(
-                    detail_df.style.background_gradient(
-                        subset=asset_cols,
-                        cmap='RdYlGn'
-                    ),
-                    hide_index=True,
-                    use_container_width=True
+            # Outcome 수집
+            outcome_list = []
+            for period in similar_periods:
+                outcome = scenario_engine.outcome_analyzer.analyze_forward_outcomes(
+                    period['date'],
+                    forward_days=forward_days
                 )
+                if outcome is not None:
+                    outcome_list.append(outcome)
+            
+            if len(outcome_list) > 0:
+                # 결과 집계
+                aggregated = scenario_engine.outcome_analyzer.aggregate_outcomes(outcome_list)
+                
+                # Bucket별로 그룹화
+                bucket_outcomes = {}
+                for asset, outcome in aggregated.items():
+                    bucket = system.bucket_mapping.get(asset, 'Unknown')
+                    if bucket not in bucket_outcomes:
+                        bucket_outcomes[bucket] = []
+                    bucket_outcomes[bucket].append((asset, outcome))
+                
+                # Bucket별 탭
+                bucket_tabs = st.tabs(['Rates', 'Risk', 'Safe Haven', 'FX', 'Commodities'])
+                
+                for tab_idx, bucket in enumerate(['Rates', 'Risk', 'Safe Haven', 'FX', 'Commodities']):
+                    with bucket_tabs[tab_idx]:
+                        if bucket not in bucket_outcomes:
+                            st.info(f"{bucket} 자산 데이터 없음")
+                            continue
+                        
+                        for asset, outcome in bucket_outcomes[bucket]:
+                            direction_symbol = "↑" if outcome['direction_consensus'] == 1 else "↓"
+                            
+                            col1, col2 = st.columns([1, 2])
+                            
+                            with col1:
+                                st.markdown(f"**{asset}**")
+                                st.metric(
+                                    "방향", 
+                                    direction_symbol,
+                                    f"{outcome['direction_strength']*100:.0f}% 확률"
+                                )
+                                st.metric(
+                                    "중앙값",
+                                    f"{outcome['median_return']:+.4f}"
+                                )
+                                st.caption(f"샘플: {outcome['sample_size']}개 국면")
+                            
+                            with col2:
+                                # 분포 차트
+                                dist_data = pd.DataFrame({
+                                    '분위수': ['P25', '중앙값', 'P75'],
+                                    '수익률': [
+                                        outcome['p25_return'],
+                                        outcome['median_return'],
+                                        outcome['p75_return']
+                                    ]
+                                })
+                                
+                                fig_dist = px.bar(
+                                    dist_data,
+                                    x='분위수',
+                                    y='수익률',
+                                    title=f"{asset} - {forward_days}일 수익률 분포",
+                                    color='수익률',
+                                    color_continuous_scale='RdYlGn'
+                                )
+                                st.plotly_chart(fig_dist, use_container_width=True)
+                            
+                            st.markdown("---")
+                
+                st.info("✅ 이것은 예측이 아닌 '과거 유사 국면의 조건부 통계'입니다.")
+            else:
+                st.warning("유사 국면 이후 결과 데이터가 없습니다.")
         else:
             st.warning("유사한 과거 시점을 찾을 수 없습니다.")
     
