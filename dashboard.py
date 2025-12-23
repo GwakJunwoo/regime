@@ -12,6 +12,7 @@ import seaborn as sns
 import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime
+import os
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -71,9 +72,23 @@ st.markdown("""
 
 
 @st.cache_resource
-def load_system():
+def load_system(force_retrain=False):
     """시스템 로드 및 초기화 (캐싱)"""
-    with st.spinner('시스템 초기화 중...'):
+    cache_path = "./results/system_cache.pkl"
+    
+    # 캐시에서 로드 시도
+    if not force_retrain:
+        try:
+            result = MultiAssetCausalSystem.load_system(cache_path)
+            if result is not None:
+                system, data_hash = result
+                st.success(f"✅ 캐시된 시스템 로드 완료!")
+                return system
+        except Exception as e:
+            st.warning(f"캐시 로드 실패: {e}. 재학습합니다...")
+    
+    # 캐시 없으면 새로 학습
+    with st.spinner('🔄 시스템 학습 중... (최초 실행 또는 재학습)'):
         system = MultiAssetCausalSystem(
             csv_path="가격 데이터.csv",
             vol_window=20,
@@ -89,6 +104,10 @@ def load_system():
         
         # 구조 분석
         system.analyze_market_structures()
+        
+        # 캐시 저장
+        system.save_system(cache_path)
+        st.success(f"✅ 시스템 학습 및 캐시 저장 완료!")
         
     return system
 
@@ -275,6 +294,22 @@ def main():
     
     # 사이드바
     st.sidebar.title("⚙️ 설정")
+    
+    # 재학습 버튼
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("🔄 시스템 관리")
+    
+    if st.sidebar.button("🔄 전체 재학습", help="모든 데이터를 다시 학습합니다 (시간 소요)"):
+        st.cache_resource.clear()  # 캐시 초기화
+        st.rerun()
+    
+    # 캐시 정보 표시
+    cache_path = "./results/system_cache.pkl"
+    if os.path.exists(cache_path):
+        cache_time = datetime.fromtimestamp(os.path.getmtime(cache_path))
+        st.sidebar.info(f"📊 마지막 학습: {cache_time.strftime('%Y-%m-%d %H:%M:%S')}")
+    
+    st.sidebar.markdown("---")
     
     # 날짜 선택
     if len(system.network_history) > 0:
