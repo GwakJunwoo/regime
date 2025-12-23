@@ -360,14 +360,14 @@ def main():
     if viz_type in ["네트워크 그래프", "둘 다"]:
         edge_threshold = st.sidebar.slider(
             "엣지 Threshold",
-            min_value=0.0,
-            max_value=0.1,
-            value=0.01,
-            step=0.001,
-            format="%.3f"
+            min_value=3,
+            max_value=20,
+            value=5,
+            step=1,
+            format="%d"
         )
     else:
-        edge_threshold = 0.01
+        edge_threshold = 5
     
     # 조건부 분석 설정
     st.sidebar.markdown("### 조건부 전이 분석")
